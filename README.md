@@ -1,3 +1,5 @@
+<img width="707" height="609" alt="image" src="https://github.com/user-attachments/assets/808c952f-f340-45d9-af0c-01751376393a" />
+
 
 # Notificador de Upload para GCS
 
