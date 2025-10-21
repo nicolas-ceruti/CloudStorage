@@ -1,13 +1,128 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload para GCS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: sans-serif; margin: 20px; background: #f4f4f4; }
-        #container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #status { margin-top: 15px; font-weight: bold; padding: 10px; border-radius: 5px; }
+        /* Reset básico e Fonte Global */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f4f7f6;
+            color: #333;
+            
+            /* 2. Centralizando o container na tela */
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+        }
+
+        /* 3. Estilizando o Card Principal */
+        #container {
+            background: #ffffff;
+            padding: 2.5rem 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        /* 4. A Mágica: Escondendo o Input Padrão */
+        #fileInput {
+            display: none;
+        }
+
+        /* 5. Estilizando o Label como um botão */
+        .file-label {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #eef2f9;
+            color: #3478f6;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .file-label:hover {
+            background: #dfe9f7;
+        }
+        
+        /* 6. Área para mostrar o nome do arquivo */
+        #fileName {
+            font-size: 0.9rem;
+            color: #777;
+            margin-top: 1rem;
+            margin-bottom: 2rem;
+            height: 1.2em; /* Garante espaço mesmo vazio */
+            font-style: italic;
+        }
+
+        /* 7. Estilizando o Botão Principal de Upload */
+        #uploadButton {
+            width: 100%;
+            padding: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            background: #3478f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #uploadButton:hover {
+            background: #2a62c4;
+        }
+        
+        /* 8. Estilo do botão quando desabilitado */
+        #uploadButton:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* 9. Estilos dos Status (com fontes atualizadas) */
+        #status {
+            margin-top: 1.5rem;
+            font-weight: 500;
+            padding: 12px;
+            border-radius: 8px;
+            /* A classe é adicionada via JS */
+            visibility: hidden; /* Começa escondido */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        #status.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
         .status-wait { background: #eef; color: #3498db; }
         .status-ok { background: #e6ffed; color: #2ecc71; }
         .status-error { background: #ffebee; color: #e74c3c; }
@@ -18,25 +133,49 @@
         <h1>Interface de Upload</h1>
         <p>Selecione um arquivo para enviar ao GCS.</p>
         
-        <input type="file" id="fileInput" />
+        <input type="file" id="fileInput">
+        
+        <label for="fileInput" class="file-label">
+            <span>&#128228;</span> Escolher Arquivo
+        </label>
+        
+        <div id="fileName">Nenhum arquivo selecionado</div>
+
         <button id="uploadButton">Fazer Upload</button>
         
         <div id="status"></div>
     </div>
 
     <script>
-     
+        // URL da sua API
         const BACKEND_URL = 'https://us-central1-my-private-data.cloudfunctions.net/getUploadUrl'; 
 
+        // 11. Referências aos novos elementos
         const fileInput = document.getElementById('fileInput');
         const uploadButton = document.getElementById('uploadButton');
         const statusDiv = document.getElementById('status');
+        const fileNameDiv = document.getElementById('fileName'); // <-- Novo
+
+        // 12. Event listener para mostrar o nome do arquivo
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileNameDiv.textContent = fileInput.files[0].name;
+            } else {
+                fileNameDiv.textContent = 'Nenhum arquivo selecionado';
+            }
+        });
 
         uploadButton.addEventListener('click', handleUpload);
 
         function setStatus(message, type = 'wait') {
             statusDiv.innerText = message;
-            statusDiv.className = `status-${type}`;
+            // Limpa classes antigas e adiciona as novas
+            statusDiv.className = ''; 
+            statusDiv.classList.add(`status-${type}`, 'show');
+        }
+        
+        function hideStatus() {
+            statusDiv.className = '';
         }
 
         async function handleUpload() {
@@ -46,7 +185,10 @@
                 return;
             }
 
-            setStatus('1/3: Solicitando permissao de upload...', 'wait');
+            // 13. Desabilitar botão e mostrar status
+            setStatus('1/3: Solicitando permissão...', 'wait');
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Enviando...';
 
             try {
                 const response = await fetch(BACKEND_URL, {
@@ -63,7 +205,7 @@
                 }
 
                 const { signedUrl } = await response.json();
-                setStatus('2/3: Permissao recebida. Fazendo upload...', 'wait');
+                setStatus('2/3: Permissão recebida. Fazendo upload...', 'wait');
 
                 const uploadResponse = await fetch(signedUrl, {
                     method: 'PUT',
@@ -72,8 +214,9 @@
                 });
 
                 if (uploadResponse.ok) {
-                    setStatus('3/3: Upload concluido com sucesso!', 'ok');
-                    fileInput.value = '';
+                    setStatus('3/3: Upload concluído com sucesso!', 'ok');
+                    fileInput.value = ''; // Limpa o input
+                    fileNameDiv.textContent = 'Nenhum arquivo selecionado'; // Limpa o nome
                 } else {
                     throw new Error('Falha no upload para o GCS.');
                 }
@@ -81,6 +224,10 @@
             } catch (error) {
                 setStatus('Erro: ' + error.message, 'error');
                 console.error(error);
+            } finally {
+                // 14. Re-abilitar o botão (em caso de sucesso ou erro)
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Fazer Upload';
             }
         }
     </script>
